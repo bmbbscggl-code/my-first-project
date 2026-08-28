@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>動的時計 / Dynamic Clock</title>
+  <style>
+    :root {
+      --bg1: #0f2027;
+      --bg2: #203a43;
+      --bg3: #2c5364;
+      --accent: #38f9d7;
+      --accent2: #43e97b;
+      --text: #eaf6f6;
+      --muted: #9fb3c8;
+      --face: rgba(255, 255, 255, 0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, system-ui, sans-serif;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+      background-size: 400% 400%;
+      animation: bgShift 18s ease infinite;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 2.2rem;
+      padding: 1.5rem;
+    }
+
+    @keyframes bgShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 28px;
+      padding: 2.6rem 3rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.6rem;
+    }
+
+    /* Analog clock */
+    .analog {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: var(--face);
+      border: 4px solid rgba(255, 255, 255, 0.15);
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(56, 249, 215, 0.15);
+    }
+
+    .tick {
+      position: absolute;
+      left: 50%;
+      top: 6px;
+      width: 2px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.35);
+      transform-origin: 50% 104px;
+    }
+    .tick.hour { height: 16px; width: 3px; background: rgba(255, 255, 255, 0.6); }
+
+    .hand {
+      position: absolute;
+      left: 50%;
+      bottom: 50%;
+      transform-origin: 50% 100%;
+      border-radius: 6px;
+      transition: transform 0.08s cubic-bezier(0.4, 2.1, 0.6, 1);
+    }
+    .hand.hour   { width: 6px; height: 55px; margin-left: -3px; background: var(--text); }
+    .hand.minute { width: 4px; height: 80px; margin-left: -2px; background: var(--accent2); }
+    .hand.second { width: 2px; height: 92px; margin-left: -1px; background: var(--accent); }
+
+    .center-dot {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 12px var(--accent);
+      z-index: 5;
+    }
+
+    /* Digital clock */
+    .digital {
+      font-size: clamp(2.6rem, 9vw, 4.4rem);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 24px rgba(56, 249, 215, 0.4);
+    }
+    .digital .sec { color: var(--accent); }
+    .digital .ampm { font-size: 0.4em; color: var(--muted); margin-left: 0.4rem; vertical-align: middle; }
+
+    .date {
+      font-size: clamp(1rem, 3.5vw, 1.3rem);
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .controls { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+    button {
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+    button:hover { background: rgba(56, 249, 215, 0.18); border-color: var(--accent); }
+    button.active { background: var(--accent); color: #06232a; font-weight: 700; border-color: var(--accent); }
+
+    footer { color: var(--muted); font-size: 0.8rem; opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="analog" id="analog" aria-hidden="true">
+      <div class="hand hour" id="handHour"></div>
+      <div class="hand minute" id="handMinute"></div>
+      <div class="hand second" id="handSecond"></div>
+      <div class="center-dot"></div>
+    </div>
+
+    <div class="digital" id="digital" role="timer" aria-live="off">--:--:--</div>
+    <div class="date" id="date">----年--月--日 (-)</div>
+
+    <div class="controls">
+      <button id="btn24" class="active" type="button">24時間表示</button>
+      <button id="btn12" type="button">12時間表示</button>
+    </div>
+  </div>
+
+  <footer>ブラウザのローカル時刻を1秒ごとに更新しています。</footer>
+
+  <script>
+    (function () {
+      var use24 = true;
+      var digital = document.getElementById("digital");
+      var dateEl = document.getElementById("date");
+      var handHour = document.getElementById("handHour");
+      var handMinute = document.getElementById("handMinute");
+      var handSecond = document.getElementById("handSecond");
+      var analog = document.getElementById("analog");
+      var btn24 = document.getElementById("btn24");
+      var btn12 = document.getElementById("btn12");
+      var weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+
+      // Build tick marks on the analog face.
+      for (var i = 0; i < 60; i++) {
+        var tick = document.createElement("div");
+        tick.className = "tick" + (i % 5 === 0 ? " hour" : "");
+        tick.style.transform = "translateX(-50%) rotate(" + i * 6 + "deg)";
+        analog.appendChild(tick);
+      }
+
+      function pad(n) { return n < 10 ? "0" + n : "" + n; }
+
+      function render() {
+        var now = new Date();
+        var h = now.getHours();
+        var m = now.getMinutes();
+        var s = now.getSeconds();
+        var ms = now.getMilliseconds();
+
+        // Digital display
+        var ampm = "";
+        var dh = h;
+        if (!use24) {
+          ampm = h < 12 ? "AM" : "PM";
+          dh = h % 12;
+          if (dh === 0) dh = 12;
+        }
+        digital.innerHTML =
+          pad(dh) + ":" + pad(m) + ':<span class="sec">' + pad(s) + "</span>" +
+          (ampm ? '<span class="ampm">' + ampm + "</span>" : "");
+
+        // Date display
+        dateEl.textContent =
+          now.getFullYear() + "年" + pad(now.getMonth() + 1) + "月" + pad(now.getDate()) +
+          "日 (" + weekdays[now.getDay()] + ")";
+
+        // Analog hands (smooth via milliseconds)
+        var secDeg = (s + ms / 1000) * 6;
+        var minDeg = (m + s / 60) * 6;
+        var hourDeg = ((h % 12) + m / 60) * 30;
+        handSecond.style.transform = "rotate(" + secDeg + "deg)";
+        handMinute.style.transform = "rotate(" + minDeg + "deg)";
+        handHour.style.transform = "rotate(" + hourDeg + "deg)";
+      }
+
+      btn24.addEventListener("click", function () {
+        use24 = true; btn24.classList.add("active"); btn12.classList.remove("active"); render();
+      });
+      btn12.addEventListener("click", function () {
+        use24 = false; btn12.classList.add("active"); btn24.classList.remove("active"); render();
+      });
+
+      // Update ~30fps for smooth second hand; time text changes only each second.
+      function loop() { render(); requestAnimationFrame(loop); }
+      loop();
+    })();
+  </script>
+</body>
+</html>
