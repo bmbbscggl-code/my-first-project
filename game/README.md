@@ -35,4 +35,12 @@
 node game/tests/core.test.js
 ```
 
+ブラウザ自動確認（任意、`puppeteer-core` と Chrome が必要）:
+
+```bash
+python3 -m http.server 8765 --directory .
+# 別ターミナル
+GAME_URL=http://127.0.0.1:8765/game/index.html node game/tests/e2e.mjs
+```
+
 検証用クエリ: `?quick=1` でウェーブ時間を圧縮します。

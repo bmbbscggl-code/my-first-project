@@ -52,7 +52,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  padding: calc(10px + var(--safe-top)) calc(14px + var(--safe-right)) 0
+  padding: calc(10px + var(--safe-top)) calc(58px + var(--safe-right)) 0
     calc(14px + var(--safe-left));
   display: flex;
   justify-content: space-between;

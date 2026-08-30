@@ -494,6 +494,8 @@
   }
 
   function showEnd(cleared) {
+    waveTitle.classList.remove("show");
+    updateHud(true);
     var hi = C.loadHighScore(localStorage);
     overlay.classList.remove("hidden");
     overlay.innerHTML =
