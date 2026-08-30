@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#070814" />
+    <title>星詠みの弾幕</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+      <div id="hud" class="hidden">
+        <div class="col">
+          <div class="label">スコア</div>
+          <div class="value" id="score">0</div>
+        </div>
+        <div class="col center">
+          <div class="label">残機</div>
+          <div class="value lives" id="lives">● ● ●</div>
+        </div>
+        <div class="col right">
+          <div class="label">ハイスコア</div>
+          <div class="value" id="hiscore">0</div>
+        </div>
+      </div>
+      <div id="wave-title"></div>
+      <div id="boss-bar"><div class="fill" id="boss-fill"></div></div>
+      <button type="button" id="mute" aria-label="ミュート切替">♪</button>
+      <div id="overlay">
+        <h1>星詠みの弾幕</h1>
+        <p class="sub">夜空を紡ぐ、光の回避劇</p>
+        <p class="howto">画面をドラッグして精霊を動かす<br />攻撃は自動／ボムなし。判定は中央の点</p>
+        <p class="scoreline hi" id="title-hi">ハイスコア 0</p>
+        <button type="button" id="start">はじめる</button>
+      </div>
+    </div>
+    <script src="js/core.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/game.js"></script>
+  </body>
+</html>
