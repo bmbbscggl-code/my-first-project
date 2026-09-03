@@ -1,0 +1,10 @@
+{
+  "name": "ニューラルクエスト",
+  "short_name": "ニューロクエスト",
+  "description": "G検定分野のオリジナル問題で遊ぶ学習ゲーム（JDLA非公式）",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#12142a",
+  "theme_color": "#12142a",
+  "lang": "ja"
+}
