@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#12142a" />
+    <meta
+      name="description"
+      content="G検定の公開シラバス分野に沿ったオリジナル問題で遊ぶ、スマホ向け学習ゲーム。JDLA非公式。"
+    />
+    <title>ニューラルクエスト｜G検定への冒険</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%237ee8c4'/%3E%3Ccircle cx='24' cy='28' r='4' fill='%2312142a'/%3E%3Ccircle cx='40' cy='28' r='4' fill='%2312142a'/%3E%3C/svg%3E"
+    />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="confetti"></canvas>
+
+      <section id="screen-title" class="screen active">
+        <div class="brand">
+          <div class="kicker">スマホで3分から</div>
+          <h1>ニューラルクエスト</h1>
+          <p class="sub">G検定への冒険</p>
+        </div>
+        <div class="hero">
+          <div class="blob" aria-hidden="true"></div>
+          <div class="hero-name">相棒はニューロ</div>
+        </div>
+        <div class="card disclaimer">
+          <strong>読むポイント（JDLA非公式）</strong>
+          <ul>
+            <li>このゲームはJDLA非公式・認定外です。</li>
+            <li>問題は公式過去問・公式例題の複製ではありません。</li>
+            <li><strong>ゲーム内のラインは練習目標</strong>で、本試験の合格基準（非公表）とは違います。</li>
+            <li><strong>合格を保証しません。</strong></li>
+          </ul>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn" id="btn-start">冒険をはじめる</button>
+          <button type="button" class="btn secondary" id="btn-about">このゲームについて</button>
+        </div>
+      </section>
+
+      <section id="screen-home" class="screen">
+        <div class="topbar">
+          <button type="button" class="icon-btn" id="btn-home-back" aria-label="戻る">←</button>
+          <div class="progress-mini">学習マップ</div>
+          <button type="button" class="icon-btn" id="btn-mute" aria-label="ミュート">♪</button>
+        </div>
+        <div class="hero">
+          <div id="home-evo" class="blob" aria-hidden="true"></div>
+          <div id="home-name" class="hero-name">たまごニューロ</div>
+        </div>
+        <div id="home-stats" class="stat-grid"></div>
+        <div class="btn-row two">
+          <button type="button" class="btn ghost" id="btn-daily">今日の5問</button>
+          <button type="button" class="btn peach" id="btn-exam">短縮模擬</button>
+        </div>
+        <button type="button" class="btn secondary" id="btn-note">まちがいノート</button>
+        <div id="stage-list" class="stage-list"></div>
+      </section>
+
+      <section id="screen-intro" class="screen">
+        <div class="topbar">
+          <button type="button" class="icon-btn" id="btn-intro-back" aria-label="戻る">←</button>
+          <div class="progress-mini">ステージ準備</div>
+          <span></span>
+        </div>
+        <div class="hero">
+          <div id="intro-icon" style="font-size: 56px">🌱</div>
+          <h2 id="intro-title">タイトル</h2>
+          <p id="intro-field" class="note"></p>
+        </div>
+        <div class="card">
+          <p id="intro-blurb" class="explain"></p>
+          <p id="intro-count" class="note" style="margin-top: 8px"></p>
+        </div>
+        <button type="button" class="btn" id="btn-intro-go">挑戦する</button>
+      </section>
+
+      <section id="screen-quiz" class="screen">
+        <div class="q-head">
+          <span id="q-label">1 / 6</span>
+          <span id="q-combo" class="combo"></span>
+        </div>
+        <div class="gauge"><i id="q-gauge"></i></div>
+        <p id="q-text" class="q-text"></p>
+        <div id="choices" class="choices"></div>
+      </section>
+
+      <section id="screen-explain" class="screen">
+        <div id="ex-banner" class="banner ok">正解</div>
+        <span id="ex-tag" class="tag"></span>
+        <p id="ex-body" class="explain"></p>
+        <div id="ex-tip" class="tip"></div>
+        <button type="button" class="btn" id="ex-next">次の問題</button>
+      </section>
+
+      <section id="screen-result" class="screen">
+        <h2 id="res-title">冒険の結果</h2>
+        <div id="res-score" class="big-score">0 / 0</div>
+        <p id="res-rate" class="hero-name" style="text-align: center"></p>
+        <p id="res-comment" class="explain"></p>
+        <p id="res-note" class="note"></p>
+        <div id="res-miss" class="miss-list card"></div>
+        <div class="btn-row two">
+          <button type="button" class="btn secondary" id="btn-res-home">マップへ</button>
+          <button type="button" class="btn" id="btn-res-retry">もう一度</button>
+        </div>
+      </section>
+
+      <section id="screen-exam-gate" class="screen">
+        <h2>短縮模擬（20問）</h2>
+        <div class="card disclaimer">
+          <strong>これはゲーム内の練習モードです。</strong><br />
+          問題はオリジナルで、本試験の問題とは違います。<br />
+          ゲーム内の練習目標（正答率70%）は、本試験の合格基準（非公表）ではありません。<br />
+          本番は約145問・オンライン100分です。
+        </div>
+        <p class="note">10分野から2問ずつ。制限時間なし。解説は1問ごとです。</p>
+        <div class="btn-row">
+          <button type="button" class="btn peach" id="btn-exam-go">理解して始める</button>
+          <button type="button" class="btn secondary" id="btn-exam-cancel">やめる</button>
+        </div>
+      </section>
+
+      <section id="screen-note" class="screen">
+        <div class="topbar">
+          <button type="button" class="icon-btn" id="btn-note-back" aria-label="戻る">←</button>
+          <div class="progress-mini">まちがいノート</div>
+          <span></span>
+        </div>
+        <p class="note">間違えた問題の正解と、なるほどポイントだけを残しています。</p>
+        <div id="note-list" class="stage-list"></div>
+      </section>
+
+      <section id="screen-about" class="screen">
+        <div class="topbar">
+          <button type="button" class="icon-btn" id="btn-about-back" aria-label="戻る">←</button>
+          <div class="progress-mini">このゲームについて</div>
+          <span></span>
+        </div>
+        <div class="card about">
+          <p class="explain">
+            ニューラルクエストは、一般社団法人日本ディープラーニング協会（JDLA）の
+            <strong>G検定（JDLA Deep Learning for GENERAL）</strong>
+            の公開シラバス分野に沿って作った、非公式の学習ゲームです。
+          </p>
+          <p class="explain" style="margin-top: 10px">
+            公式過去問・公式例題は使っていません。公開シラバス10分野の基礎を、初心者がスキマ時間で触れられるようにしています。
+          </p>
+          <p class="note" style="margin-top: 10px">
+            このゲームは合格を保証しません。本試験の合格基準はJDLA非公表です。ゲーム内の70%は練習目標です。
+          </p>
+          <p class="note" style="margin-top: 10px">
+            本試験の情報は
+            <a href="https://www.jdla.org/certificate/general/" target="_blank" rel="noopener"
+              >JDLA公式ページ</a
+            >
+            を確認してください。
+          </p>
+        </div>
+      </section>
+    </div>
+    <script src="js/questions.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
