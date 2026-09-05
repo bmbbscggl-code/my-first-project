@@ -160,6 +160,17 @@ test("装備メッセージと所有スロット", () => {
   assert.equal(L.hitPowerBar(20, 80), false);
 });
 
+test("タッチ位置より上に自機が来る", () => {
+  const grabOnShip = L.beginTouchSteer(40, 90, 36, 88, 52);
+  assert.equal(grabOnShip.dy, -52);
+  const aim = L.aimFromTouch(40, 90, grabOnShip);
+  assert.ok(aim.y <= 90 - 52);
+  const grabAlreadyAbove = L.beginTouchSteer(40, 140, 36, 70, 52);
+  assert.equal(grabAlreadyAbove.dy, 70 - 140);
+  const keep = L.aimFromTouch(40, 150, grabAlreadyAbove);
+  assert.equal(keep.y, 80);
+});
+
 test("コナミコマンドと移動速度", () => {
   const code = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "KeyB", "KeyA"];
   assert.equal(L.matchesKonami(code), true);

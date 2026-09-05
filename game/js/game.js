@@ -21,7 +21,7 @@
   ctx.imageSmoothingEnabled = false;
 
   const keys = Object.create(null);
-  const pointer = { down: false, x: 48, y: 96 };
+  const pointer = { down: false, x: 48, y: 96, grab: null };
   let konamiBuf = [];
   let audioCtx = null;
   let bgmTimer = null;
@@ -70,8 +70,8 @@
     return {
       x: 36,
       y: 88,
-      w: 16,
-      h: 8,
+      w: 22,
+      h: 12,
       inv: 0,
       alive: true,
     };
@@ -332,7 +332,7 @@
   }
 
   function playerHitBox() {
-    return { x: S.player.x + 6, y: S.player.y + 2, w: 5, h: 4 };
+    return { x: S.player.x + 8, y: S.player.y + 4, w: 6, h: 4 };
   }
 
   function fireWeapons() {
@@ -340,7 +340,7 @@
     const m = S.meter;
     S.fireCd = m.laser ? 5 : 8;
     const shots = [];
-    const origin = { x: S.player.x + 14, y: S.player.y + 3 };
+    const origin = { x: S.player.x + 20, y: S.player.y + 5 };
     pushShot(origin, m, shots);
     for (let i = 0; i < m.options; i++) {
       const idx = L.optionTrailIndex(i, S.trail.length);
@@ -353,8 +353,8 @@
     if (m.missile && S.missileCd <= 0) {
       S.missileCd = 18;
       S.missiles.push({
-        x: S.player.x + 6,
-        y: S.player.y + 8,
+        x: S.player.x + 8,
+        y: S.player.y + 11,
         w: 9,
         h: 5,
         vx: 1.6,
@@ -538,7 +538,7 @@
     updateBoss();
     updateParticles();
 
-    if (S.player.alive && S.player.inv <= 0 && solidAt(S.player.x + 4, S.player.y + 1, 8, 6)) {
+    if (S.player.alive && S.player.inv <= 0 && solidAt(S.player.x + 6, S.player.y + 2, 10, 8)) {
       hurtPlayer();
     }
     if (!S.player.alive && S.mode === "play") S.mode = "dying";
@@ -550,8 +550,9 @@
     let tx = S.player.x;
     let ty = S.player.y;
     if (pointer.down) {
-      tx = pointer.x - 8;
-      ty = pointer.y - 4;
+      const aim = L.aimFromTouch(pointer.x, pointer.y, pointer.grab);
+      tx = aim.x;
+      ty = aim.y;
     }
     if (keys.ArrowLeft || keys.KeyA) tx -= spd;
     if (keys.ArrowRight || keys.KeyD) tx += spd;
@@ -565,8 +566,8 @@
         S.player.y = ty;
       }
     }
-    S.player.x = L.clamp(S.player.x, 4, 150);
-    S.player.y = L.clamp(S.player.y, PLAY_Y + 4, PLAY_Y + PLAY_H - 12);
+    S.player.x = L.clamp(S.player.x, 4, 148);
+    S.player.y = L.clamp(S.player.y, PLAY_Y + 4, PLAY_Y + PLAY_H - 16);
   }
 
   function updateTrail() {
@@ -865,6 +866,7 @@
       drawEnemyShots();
       drawOptions();
       drawPlayer();
+      drawTouchMark();
       drawParticles();
     }
     ctx.restore();
@@ -932,34 +934,44 @@
     }
   }
 
+  function drawTouchMark() {
+    if (!pointer.down || S.mode !== "play") return;
+    const x = pointer.x | 0;
+    const y = pointer.y | 0;
+    ctx.strokeStyle = "rgba(255, 220, 120, 0.45)";
+    ctx.strokeRect(x - 5, y - 5, 10, 10);
+    ctx.fillStyle = "rgba(255, 220, 120, 0.35)";
+    ctx.fillRect(x - 1, y - 1, 2, 2);
+  }
+
   function drawPlayer() {
     if (!S.player.alive) return;
     if (S.player.inv > 0 && (S.frame & 2) === 0) return;
     const x = S.player.x | 0;
     const y = S.player.y | 0;
     ctx.fillStyle = "#e8e8f0";
-    ctx.fillRect(x + 4, y + 2, 10, 4);
+    ctx.fillRect(x + 5, y + 3, 14, 6);
     ctx.fillStyle = "#ff3030";
-    ctx.fillRect(x + 13, y + 3, 3, 2);
+    ctx.fillRect(x + 18, y + 4, 5, 4);
     ctx.fillStyle = "#2050d0";
-    ctx.fillRect(x + 5, y, 6, 2);
-    ctx.fillRect(x + 5, y + 6, 6, 2);
+    ctx.fillRect(x + 6, y, 10, 3);
+    ctx.fillRect(x + 6, y + 9, 10, 3);
     ctx.fillStyle = "#40e8ff";
-    ctx.fillRect(x, y + 3, 4, 2);
-    if ((S.frame & 2) === 0) ctx.fillRect(x - 2, y + 3, 2, 2);
+    ctx.fillRect(x, y + 4, 6, 4);
+    if ((S.frame & 2) === 0) ctx.fillRect(x - 3, y + 4, 3, 4);
     if (S.meter.missile) {
       ctx.fillStyle = "#c03010";
-      ctx.fillRect(x + 6, y + 8, 6, 3);
+      ctx.fillRect(x + 8, y + 12, 8, 3);
       ctx.fillStyle = "#ff8030";
-      ctx.fillRect(x + 11, y + 8, 2, 3);
+      ctx.fillRect(x + 15, y + 12, 3, 3);
     }
     if (S.meter.laser) {
       ctx.fillStyle = "#40ff90";
-      ctx.fillRect(x + 16, y + 3, 4, 2);
+      ctx.fillRect(x + 22, y + 5, 5, 3);
     }
     if (S.meter.shield > 0) {
       ctx.strokeStyle = S.meter.shield === 1 ? "#ff4040" : "#80f0ff";
-      ctx.strokeRect(x - 3, y - 3, 22, 14);
+      ctx.strokeRect(x - 3, y - 3, 28, 18);
     }
   }
 
@@ -1135,7 +1147,7 @@
     ctx.fillText("スターヴァイパー", 68, 86);
     ctx.fillStyle = "#d0d0e8";
     ctx.font = "8px monospace";
-    ctx.fillText("カプセルでゲージ点灯 → POWERで装備", 24, 108);
+    ctx.fillText("指の上に自機が出る・POWERで装備", 28, 108);
     ctx.fillStyle = (S.frame >> 4) % 2 ? "#fff0c0" : "#a08040";
     ctx.fillText("CLICK / TAP  TO  START", 52, 132);
     ctx.fillStyle = "#8080a0";
@@ -1201,6 +1213,11 @@
       laser: S.meter.laser,
       options: S.meter.options,
       missiles: S.missiles.length,
+      shipX: Math.round(S.player.x),
+      shipY: Math.round(S.player.y),
+      touchX: Math.round(pointer.x),
+      touchY: Math.round(pointer.y),
+      aboveFinger: !pointer.down || S.player.y < pointer.y - 20,
     };
     draw();
     requestAnimationFrame(loop);
@@ -1246,6 +1263,9 @@
     pointer.x = p.x;
     pointer.y = p.y;
     if (S.mode !== "play") onStartGesture();
+    if (S.mode === "play") {
+      pointer.grab = L.beginTouchSteer(p.x, p.y, S.player.x, S.player.y, L.TOUCH_LIFT_Y);
+    }
   });
   canvas.addEventListener("pointermove", (ev) => {
     ev.preventDefault();
@@ -1256,6 +1276,7 @@
   }, { passive: false });
   window.addEventListener("pointerup", () => {
     pointer.down = false;
+    pointer.grab = null;
   });
   canvas.addEventListener("touchstart", (ev) => ev.preventDefault(), { passive: false });
   canvas.addEventListener("touchmove", (ev) => ev.preventDefault(), { passive: false });
