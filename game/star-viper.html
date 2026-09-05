@@ -199,6 +199,14 @@ body {
   var MAX_SPEED = 5;
   var MAX_OPTIONS = 2;
   var MAX_SHIELD = 3;
+  var FRAME_MS = 1000 / 60;
+  var MAX_STEPS = 5;
+  var MAX_ONSCREEN_CAPSULES = 1;
+  var WAVE_PERIOD = 8;
+  var RED_PHASE = 3;
+  var WIPE_PHASE = 6;
+  var FAN_COUNT = 5;
+  var RED_SLOT = 2;
 
   function createMeter() {
     return {
@@ -345,12 +353,79 @@ body {
     };
   }
 
+  function isFanType(type) {
+    return type === "fan" || type === "fanRed";
+  }
+
+  function isRedWave(waveIndex) {
+    return waveIndex >= 1 && waveIndex % WAVE_PERIOD === RED_PHASE;
+  }
+
+  function isWipeBonusWave(waveIndex) {
+    return waveIndex >= 1 && waveIndex % WAVE_PERIOD === WIPE_PHASE;
+  }
+
+  function planWave(waveIndex) {
+    var red = isRedWave(waveIndex);
+    return {
+      fanCount: FAN_COUNT,
+      isRed: red,
+      redSlot: RED_SLOT,
+      wipeBonus: isWipeBonusWave(waveIndex),
+    };
+  }
+
+  function resetSimulationClock(now) {
+    return { last: now, acc: 0, steps: 0 };
+  }
+
+  function stepSimulationClock(now, last, acc, frameMs, maxSteps, paused) {
+    if (!(frameMs > 0)) return { last: now, acc: 0, steps: 0 };
+    var cap = maxSteps < 1 ? 1 : maxSteps;
+    if (paused) return { last: now, acc: 0, steps: 0 };
+    if (last === null || last === undefined) {
+      return { last: now, acc: 0, steps: 1 };
+    }
+    var dt = now < last ? 0 : now - last;
+    var nextAcc = acc + dt;
+    var steps = 0;
+    while (nextAcc >= frameMs && steps < cap) {
+      nextAcc -= frameMs;
+      steps += 1;
+    }
+    if (steps === cap && nextAcc >= frameMs) nextAcc = 0;
+    return { last: now, acc: nextAcc, steps: steps };
+  }
+
+  function shouldDropCapsule(event) {
+    if (!event || event.kind !== "kill") return false;
+    if ((event.onScreenCapsules || 0) >= MAX_ONSCREEN_CAPSULES) return false;
+    if (event.waveDropped) return false;
+    if (!(event.waveIndex >= 1)) return false;
+    if (!isFanType(event.enemyType)) return false;
+    if (event.red && event.waveHasRed) return true;
+    if (event.waveHasRed) return false;
+    if (!isWipeBonusWave(event.waveIndex)) return false;
+    if ((event.fansEscaped || 0) > 0) return false;
+    if (event.fansAliveAfter !== 0) return false;
+    if (!(event.fansSpawned >= 1)) return false;
+    return true;
+  }
+
   return {
     POWER_NAMES: POWER_NAMES,
     EXTRA_LIFE_AT: EXTRA_LIFE_AT,
     MAX_SPEED: MAX_SPEED,
     MAX_OPTIONS: MAX_OPTIONS,
     MAX_SHIELD: MAX_SHIELD,
+    FRAME_MS: FRAME_MS,
+    MAX_STEPS: MAX_STEPS,
+    MAX_ONSCREEN_CAPSULES: MAX_ONSCREEN_CAPSULES,
+    WAVE_PERIOD: WAVE_PERIOD,
+    RED_PHASE: RED_PHASE,
+    WIPE_PHASE: WIPE_PHASE,
+    FAN_COUNT: FAN_COUNT,
+    RED_SLOT: RED_SLOT,
     createMeter: createMeter,
     collectCapsule: collectCapsule,
     canActivate: canActivate,
@@ -367,6 +442,13 @@ body {
     stageTheme: stageTheme,
     waveInterval: waveInterval,
     cloneMeter: cloneMeter,
+    isFanType: isFanType,
+    isRedWave: isRedWave,
+    isWipeBonusWave: isWipeBonusWave,
+    planWave: planWave,
+    resetSimulationClock: resetSimulationClock,
+    stepSimulationClock: stepSimulationClock,
+    shouldDropCapsule: shouldDropCapsule,
   };
 });
 
@@ -436,6 +518,7 @@ body {
       dyingT: 0,
       clearT: 0,
       konamiUsed: false,
+      waveTrack: null,
     };
   }
 
@@ -615,31 +698,18 @@ body {
   }
 
   function spawnWave() {
+    const plan = L.planWave(S.waveIndex);
+    S.waveTrack = {
+      waveIndex: S.waveIndex,
+      hasRed: plan.isRed,
+      dropped: false,
+      spawned: plan.fanCount,
+      alive: plan.fanCount,
+      escaped: 0,
+    };
     const y = 28 + Math.random() * 120;
-    const kind = S.waveIndex % 5;
-    const red = kind === 1 || kind === 4;
-    if (theme() === "moai" && S.scroll > 700 && S.waveIndex % 3 === 0) {
-      spawnMoai(false);
-      if (S.waveIndex % 6 === 0) spawnMoai(true);
-      return;
-    }
-    if (theme() === "fortress" && S.scroll > 700 && S.waveIndex % 4 === 0) {
-      spawnEnemy({
-        type: "turret",
-        x: W + 10,
-        y: PLAY_Y + PLAY_H - terrainHeights(S.scroll + W).bot - 12,
-        w: 12,
-        h: 10,
-        hp: 4,
-        vx: -0.55,
-        vy: 0,
-        t: 0,
-        red: false,
-        score: 300,
-      });
-    }
-    const count = red ? 3 : 5;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < plan.fanCount; i++) {
+      const red = plan.isRed && i === plan.redSlot;
       spawnEnemy({
         type: red ? "fanRed" : "fan",
         x: W + 8 + i * 14,
@@ -654,6 +724,26 @@ body {
         t: i * 6,
         red: red,
         score: red ? 200 : 100,
+        waveIndex: S.waveIndex,
+      });
+    }
+    if (theme() === "moai" && S.scroll > 700 && S.waveIndex % 3 === 0) {
+      spawnMoai(false);
+      if (S.waveIndex % 6 === 0) spawnMoai(true);
+    }
+    if (theme() === "fortress" && S.scroll > 700 && S.waveIndex % 4 === 0) {
+      spawnEnemy({
+        type: "turret",
+        x: W + 10,
+        y: PLAY_Y + PLAY_H - terrainHeights(S.scroll + W).bot - 12,
+        w: 12,
+        h: 10,
+        hp: 4,
+        vx: -0.55,
+        vy: 0,
+        t: 0,
+        red: false,
+        score: 300,
       });
     }
     if (S.scroll > 700 && S.waveIndex % 2 === 0) {
@@ -786,6 +876,7 @@ body {
     S.stage = stage;
     S.continues = continues;
     S.player.inv = 80;
+    clock = L.resetSimulationClock(performance.now());
     say("STAGE " + (S.stage + 1) + "  START", 100);
     refreshPowerBtn();
   }
@@ -855,6 +946,7 @@ body {
         S.enemies = [];
         S.enemyShots = [];
         S.waveIndex = 0;
+        S.waveTrack = null;
         S.mode = "play";
         S.player.inv = 80;
         if (S.stage >= 3) {
@@ -996,12 +1088,36 @@ body {
     }
   }
 
+  function noteFanGone(e, kind) {
+    if (!S.waveTrack || e.waveIndex !== S.waveTrack.waveIndex) return;
+    if (!L.isFanType(e.type)) return;
+    if (kind === "escape") S.waveTrack.escaped += 1;
+    S.waveTrack.alive -= 1;
+    if (
+      L.shouldDropCapsule({
+        kind: kind,
+        enemyType: e.type,
+        red: !!e.red,
+        waveIndex: S.waveTrack.waveIndex,
+        waveHasRed: S.waveTrack.hasRed,
+        waveDropped: S.waveTrack.dropped,
+        fansAliveAfter: S.waveTrack.alive,
+        fansEscaped: S.waveTrack.escaped,
+        fansSpawned: S.waveTrack.spawned,
+        onScreenCapsules: S.capsules.length,
+      })
+    ) {
+      dropCapsule(e.x, e.y);
+      S.waveTrack.dropped = true;
+    }
+  }
+
   function killEnemy(j) {
     const e = S.enemies[j];
     addScore(e.score);
     burst(e.x + e.w / 2, e.y + e.h / 2, e.red ? "#ff6040" : "#ffd040", 12);
     beep(320, 0.06, "square", 0.045, 140);
-    if (e.red || (e.type === "fan" && Math.random() < 0.12)) dropCapsule(e.x, e.y);
+    noteFanGone(e, "kill");
     S.enemies.splice(j, 1);
   }
 
@@ -1038,6 +1154,7 @@ body {
         e.y += e.vy;
       }
       if (e.x < -30) {
+        noteFanGone(e, "escape");
         S.enemies.splice(i, 1);
         continue;
       }
@@ -1460,9 +1577,40 @@ body {
     for (let y = 0; y < H; y += 2) ctx.fillRect(0, y, W, 1);
   }
 
-  function loop() {
-    if (S.mode === "title") updateTitle();
-    else updatePlay();
+  let clock = { last: null, acc: 0 };
+  const dbg = { windowSteps: 0, windowStart: 0, lastHz: 0 };
+
+  function loop(now) {
+    const paused = S.mode === "paused";
+    const stepped = L.stepSimulationClock(
+      now,
+      clock.last,
+      clock.acc,
+      L.FRAME_MS,
+      L.MAX_STEPS,
+      paused
+    );
+    clock.last = stepped.last;
+    clock.acc = stepped.acc;
+    for (let i = 0; i < stepped.steps; i++) {
+      if (S.mode === "title") updateTitle();
+      else updatePlay();
+    }
+    dbg.windowSteps += stepped.steps;
+    if (!dbg.windowStart) dbg.windowStart = now;
+    if (now - dbg.windowStart >= 1000) {
+      dbg.lastHz = dbg.windowSteps / ((now - dbg.windowStart) / 1000);
+      dbg.windowSteps = 0;
+      dbg.windowStart = now;
+    }
+    window.__SV = {
+      simHz: Math.round(dbg.lastHz * 10) / 10,
+      capsules: S.capsules.length,
+      wave: S.waveIndex,
+      cursor: S.meter.cursor,
+      mode: S.mode,
+      enemies: S.enemies.length,
+    };
     draw();
     requestAnimationFrame(loop);
   }
@@ -1485,8 +1633,13 @@ body {
   }
 
   function togglePause() {
-    if (S.mode === "play") S.mode = "paused";
-    else if (S.mode === "paused") S.mode = "play";
+    if (S.mode === "play") {
+      S.mode = "paused";
+      clock = L.resetSimulationClock(performance.now());
+    } else if (S.mode === "paused") {
+      S.mode = "play";
+      clock = L.resetSimulationClock(performance.now());
+    }
   }
 
   canvas.addEventListener("pointerdown", (ev) => {
@@ -1500,11 +1653,12 @@ body {
     if (S.mode !== "play") onStartGesture();
   });
   canvas.addEventListener("pointermove", (ev) => {
+    ev.preventDefault();
     const p = canvasPoint(ev);
     if (!p || !pointer.down) return;
     pointer.x = p.x;
     pointer.y = p.y;
-  });
+  }, { passive: false });
   window.addEventListener("pointerup", () => {
     pointer.down = false;
   });
@@ -1547,7 +1701,10 @@ body {
 
   window.addEventListener("resize", fitCanvas);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && S.mode === "play") S.mode = "paused";
+    if (document.hidden && S.mode === "play") {
+      S.mode = "paused";
+      clock = L.resetSimulationClock(performance.now());
+    }
   });
 
   fitCanvas();
