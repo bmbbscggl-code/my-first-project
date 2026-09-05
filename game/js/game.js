@@ -429,6 +429,10 @@
     } else {
       say("STAGE " + (S.stage + 1) + "  START", 100);
     }
+    if (/(?:^|[?&])red=1(?:&|$)/.test(location.search)) {
+      S.waveIndex = 2;
+      S.waveTimer = 1000;
+    }
     refreshPowerBtn();
   }
 
@@ -641,26 +645,27 @@
   }
 
   function noteFanGone(e, kind) {
-    if (!S.waveTrack || e.waveIndex !== S.waveTrack.waveIndex) return;
-    if (!L.isFanType(e.type)) return;
-    if (kind === "escape") S.waveTrack.escaped += 1;
-    S.waveTrack.alive -= 1;
+    const trackMatch = !!(S.waveTrack && e.waveIndex === S.waveTrack.waveIndex);
+    if (trackMatch && L.isFanType(e.type)) {
+      if (kind === "escape") S.waveTrack.escaped += 1;
+      S.waveTrack.alive -= 1;
+    }
     if (
       L.shouldDropCapsule({
         kind: kind,
         enemyType: e.type,
         red: !!e.red,
-        waveIndex: S.waveTrack.waveIndex,
-        waveHasRed: S.waveTrack.hasRed,
-        waveDropped: S.waveTrack.dropped,
-        fansAliveAfter: S.waveTrack.alive,
-        fansEscaped: S.waveTrack.escaped,
-        fansSpawned: S.waveTrack.spawned,
+        waveIndex: e.waveIndex || (trackMatch ? S.waveTrack.waveIndex : 0),
+        waveHasRed: trackMatch ? S.waveTrack.hasRed : !!e.red,
+        waveDropped: trackMatch ? S.waveTrack.dropped : false,
+        fansAliveAfter: trackMatch ? S.waveTrack.alive : 0,
+        fansEscaped: trackMatch ? S.waveTrack.escaped : 0,
+        fansSpawned: trackMatch ? S.waveTrack.spawned : L.FAN_COUNT,
         onScreenCapsules: S.capsules.length,
       })
     ) {
       dropCapsule(e.x, e.y);
-      S.waveTrack.dropped = true;
+      if (trackMatch) S.waveTrack.dropped = true;
     }
   }
 

@@ -124,8 +124,15 @@ test("カプセルは赤1機か全滅ボーナスだけ", () => {
   };
   assert.equal(L.shouldDropCapsule(base), true);
   assert.equal(L.shouldDropCapsule(Object.assign({}, base, { enemyType: "fan", red: false })), false);
-  assert.equal(L.shouldDropCapsule(Object.assign({}, base, { onScreenCapsules: 1 })), false);
-  assert.equal(L.shouldDropCapsule(Object.assign({}, base, { waveDropped: true })), false);
+  assert.equal(L.shouldDropCapsule(Object.assign({}, base, { onScreenCapsules: 1 })), true);
+  assert.equal(L.shouldDropCapsule(Object.assign({}, base, { waveDropped: true })), true);
+  assert.equal(
+    L.shouldDropCapsule(
+      Object.assign({}, base, { waveIndex: 3, waveHasRed: false, waveDropped: false })
+    ),
+    true,
+    "次の波に残った赤も落とす"
+  );
 
   const wipe = {
     kind: "kill",
@@ -144,6 +151,7 @@ test("カプセルは赤1機か全滅ボーナスだけ", () => {
   assert.equal(L.shouldDropCapsule(Object.assign({}, wipe, { waveIndex: 1 })), false);
   assert.equal(L.shouldDropCapsule(Object.assign({}, wipe, { kind: "escape" })), false);
   assert.equal(L.shouldDropCapsule(Object.assign({}, wipe, { enemyType: "ducker" })), false);
+  assert.equal(L.shouldDropCapsule(Object.assign({}, wipe, { onScreenCapsules: 1 })), false);
 });
 
 test("装備メッセージと所有スロット", () => {
