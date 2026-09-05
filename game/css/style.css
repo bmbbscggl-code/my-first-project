@@ -80,6 +80,10 @@ body {
   letter-spacing: 0.04em;
 }
 
+#power-btn::after {
+  content: " 装備";
+}
+
 #power-btn,
 #pause-btn {
   appearance: none;

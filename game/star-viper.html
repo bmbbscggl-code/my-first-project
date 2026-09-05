@@ -93,6 +93,10 @@ body {
   letter-spacing: 0.04em;
 }
 
+#power-btn::after {
+  content: " 装備";
+}
+
 #power-btn,
 #pause-btn {
   appearance: none;
@@ -173,7 +177,7 @@ body {
       <div id="controls">
         <p class="hint">
           ドラッグで移動・自動連射<br />
-          カプセルを貯めて POWER
+          カプセルで点灯 → POWERで装備
         </p>
         <button id="pause-btn" type="button">PAUSE</button>
         <button id="power-btn" type="button">POWER</button>
@@ -195,6 +199,14 @@ body {
   "use strict";
 
   var POWER_NAMES = ["SPEED", "MISSILE", "DOUBLE", "LASER", "OPTION", "?"];
+  var POWER_JA = {
+    SPEED: "スピードアップ",
+    MISSILE: "ミサイル装備",
+    DOUBLE: "ダブルショット",
+    LASER: "レーザー装備",
+    OPTION: "オプション",
+    "?": "シールド展開",
+  };
   var EXTRA_LIFE_AT = [20000, 50000, 100000, 200000];
   var MAX_SPEED = 5;
   var MAX_OPTIONS = 2;
@@ -218,6 +230,32 @@ body {
       options: 0,
       shield: 0,
     };
+  }
+
+  function collectMessage(cursor) {
+    var name = POWER_NAMES[cursor];
+    if (!name) return "POWERで装備";
+    return name + "点灯! POWERで装備";
+  }
+
+  function activationMessage(name, wasted) {
+    if (wasted) return "これ以上つけられない";
+    return POWER_JA[name] || name || "";
+  }
+
+  function isSlotOwned(meter, slot) {
+    if (!meter) return false;
+    if (slot === 0) return meter.speed > 1;
+    if (slot === 1) return !!meter.missile;
+    if (slot === 2) return !!meter.double;
+    if (slot === 3) return !!meter.laser;
+    if (slot === 4) return meter.options > 0;
+    if (slot === 5) return meter.shield > 0;
+    return false;
+  }
+
+  function hitPowerBar(px, py) {
+    return py >= 186 && py <= 223 && px >= 0 && px <= 256;
   }
 
   function collectCapsule(meter) {
@@ -301,7 +339,7 @@ body {
 
   function playerSpeed(speedLevel) {
     var level = Math.max(1, Math.min(MAX_SPEED, speedLevel || 1));
-    return 1.05 + (level - 1) * 0.42;
+    return 1.15 + (level - 1) * 0.65;
   }
 
   function optionTrailIndex(optionSlot, trailLength) {
@@ -414,6 +452,7 @@ body {
 
   return {
     POWER_NAMES: POWER_NAMES,
+    POWER_JA: POWER_JA,
     EXTRA_LIFE_AT: EXTRA_LIFE_AT,
     MAX_SPEED: MAX_SPEED,
     MAX_OPTIONS: MAX_OPTIONS,
@@ -449,6 +488,10 @@ body {
     resetSimulationClock: resetSimulationClock,
     stepSimulationClock: stepSimulationClock,
     shouldDropCapsule: shouldDropCapsule,
+    collectMessage: collectMessage,
+    activationMessage: activationMessage,
+    isSlotOwned: isSlotOwned,
+    hitPowerBar: hitPowerBar,
   };
 });
 
@@ -807,25 +850,25 @@ body {
     beep(m.laser ? 980 : 740, 0.04, "square", 0.04);
 
     if (m.missile && S.missileCd <= 0) {
-      S.missileCd = 22;
+      S.missileCd = 18;
       S.missiles.push({
         x: S.player.x + 6,
-        y: S.player.y + 6,
-        w: 6,
-        h: 4,
-        vx: 1.4,
-        vy: 1.5,
+        y: S.player.y + 8,
+        w: 9,
+        h: 5,
+        vx: 1.6,
+        vy: 1.7,
       });
     }
   }
 
   function pushShot(o, m, shots) {
     if (m.laser) {
-      shots.push({ x: o.x, y: o.y, w: 18, h: 2, vx: 4.2, vy: 0, dmg: 2, pierce: true });
+      shots.push({ x: o.x, y: o.y - 1, w: 28, h: 4, vx: 4.4, vy: 0, dmg: 2, pierce: true });
     } else {
-      shots.push({ x: o.x, y: o.y, w: 6, h: 2, vx: 3.6, vy: 0, dmg: 1, pierce: false });
+      shots.push({ x: o.x, y: o.y, w: 7, h: 2, vx: 3.6, vy: 0, dmg: 1, pierce: false });
       if (m.double) {
-        shots.push({ x: o.x, y: o.y, w: 5, h: 2, vx: 2.8, vy: -2.1, dmg: 1, pierce: false });
+        shots.push({ x: o.x, y: o.y, w: 6, h: 2, vx: 2.6, vy: -2.3, dmg: 1, pierce: false });
       }
     }
   }
@@ -835,9 +878,10 @@ body {
     if (S.meter.cursor < 0) return;
     const res = L.activatePower(S.meter);
     S.meter = res.meter;
-    beep(520, 0.08, "square", 0.06, 980);
-    say(res.wasted ? "POWER MAX" : res.name, 70);
-    if (res.name === "?") S.flash = 8;
+    beep(520, 0.1, "square", 0.07, 1100);
+    say(L.activationMessage(res.name, res.wasted), 90);
+    S.flash = 10;
+    burst(S.player.x + 8, S.player.y + 4, "#fff0a0", 16);
     refreshPowerBtn();
   }
 
@@ -877,7 +921,13 @@ body {
     S.continues = continues;
     S.player.inv = 80;
     clock = L.resetSimulationClock(performance.now());
-    say("STAGE " + (S.stage + 1) + "  START", 100);
+    if (/(?:^|[?&])max=1(?:&|$)/.test(location.search)) {
+      S.meter = L.applyKonami(S.meter);
+      S.player.inv = 180;
+      say("ミサイル装備", 90);
+    } else {
+      say("STAGE " + (S.stage + 1) + "  START", 100);
+    }
     refreshPowerBtn();
   }
 
@@ -1205,7 +1255,9 @@ body {
       if (S.player.alive && L.aabb({ x: S.player.x, y: S.player.y, w: S.player.w, h: S.player.h }, c)) {
         S.meter = L.collectCapsule(S.meter);
         addScore(50);
-        beep(660, 0.07, "square", 0.05, 990);
+        beep(660, 0.08, "square", 0.06, 1180);
+        say(L.collectMessage(S.meter.cursor), 80);
+        burst(c.x, c.y, "#ffe060", 10);
         S.capsules.splice(i, 1);
         refreshPowerBtn();
       }
@@ -1394,9 +1446,19 @@ body {
     ctx.fillStyle = "#40e8ff";
     ctx.fillRect(x, y + 3, 4, 2);
     if ((S.frame & 2) === 0) ctx.fillRect(x - 2, y + 3, 2, 2);
+    if (S.meter.missile) {
+      ctx.fillStyle = "#c03010";
+      ctx.fillRect(x + 6, y + 8, 6, 3);
+      ctx.fillStyle = "#ff8030";
+      ctx.fillRect(x + 11, y + 8, 2, 3);
+    }
+    if (S.meter.laser) {
+      ctx.fillStyle = "#40ff90";
+      ctx.fillRect(x + 16, y + 3, 4, 2);
+    }
     if (S.meter.shield > 0) {
       ctx.strokeStyle = S.meter.shield === 1 ? "#ff4040" : "#80f0ff";
-      ctx.strokeRect(x - 2, y - 2, 20, 12);
+      ctx.strokeRect(x - 3, y - 3, 22, 14);
     }
   }
 
@@ -1405,26 +1467,41 @@ body {
       const idx = L.optionTrailIndex(i, S.trail.length);
       const p = S.trail[idx];
       if (!p) continue;
-      ctx.fillStyle = "#40e8ff";
-      ctx.fillRect((p.x + 4) | 0, (p.y + 2) | 0, 6, 6);
+      const ox = (p.x + 3) | 0;
+      const oy = (p.y + 1) | 0;
+      ctx.fillStyle = (S.frame >> 2) % 2 ? "#80ffff" : "#40e8ff";
+      ctx.fillRect(ox, oy, 8, 8);
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect((p.x + 6) | 0, (p.y + 4) | 0, 2, 2);
+      ctx.fillRect(ox + 2, oy + 2, 4, 4);
     }
   }
 
   function drawBullets() {
     for (let i = 0; i < S.bullets.length; i++) {
       const b = S.bullets[i];
-      ctx.fillStyle = b.pierce ? "#40ff90" : "#fff8c0";
-      ctx.fillRect(b.x | 0, b.y | 0, b.w, b.h);
+      if (b.pierce) {
+        ctx.fillStyle = "#b8ffd0";
+        ctx.fillRect(b.x | 0, b.y | 0, b.w, b.h);
+        ctx.fillStyle = "#40ff90";
+        ctx.fillRect(b.x | 0, (b.y + 1) | 0, b.w, 2);
+      } else {
+        ctx.fillStyle = "#fff8c0";
+        ctx.fillRect(b.x | 0, b.y | 0, b.w, b.h);
+      }
     }
   }
 
   function drawMissiles() {
-    ctx.fillStyle = "#ff8040";
     for (let i = 0; i < S.missiles.length; i++) {
       const m = S.missiles[i];
-      ctx.fillRect(m.x | 0, m.y | 0, m.w, m.h);
+      const x = m.x | 0;
+      const y = m.y | 0;
+      ctx.fillStyle = "#ff3010";
+      ctx.fillRect(x, y, 8, 5);
+      ctx.fillStyle = "#ffe060";
+      ctx.fillRect(x + 6, y + 1, 4, 3);
+      ctx.fillStyle = (S.frame >> 1) % 2 ? "#40e8ff" : "#ff8020";
+      ctx.fillRect(x - 4, y + 1, 4, 3);
     }
   }
 
@@ -1520,11 +1597,20 @@ body {
       const x = 6 + i * slotW;
       const y = 202;
       const on = S.meter.cursor === i;
-      ctx.fillStyle = on ? ((S.frame >> 3) % 2 ? "#f09020" : "#ffe080") : "#202038";
+      const owned = L.isSlotOwned(S.meter, i);
+      ctx.fillStyle = on ? ((S.frame >> 3) % 2 ? "#f09020" : "#ffe080") : owned ? "#1a3048" : "#202038";
       ctx.fillRect(x, y, slotW - 3, 16);
-      ctx.fillStyle = on ? "#201000" : "#808098";
+      ctx.fillStyle = on ? "#201000" : owned ? "#80e0ff" : "#808098";
       ctx.font = "6px monospace";
       ctx.fillText(names[i], x + 2, y + 11);
+      if (owned) {
+        ctx.fillStyle = "#40e8ff";
+        ctx.fillRect(x + 2, y + 13, slotW - 7, 2);
+      }
+      if (on && S.mode === "play") {
+        ctx.fillStyle = (S.frame >> 3) % 2 ? "#ffe080" : "#ff8020";
+        ctx.fillText("▼", x + 16, y - 1);
+      }
     }
     if (S.messageT > 0 && S.mode !== "title") {
       ctx.fillStyle = "#fff8c0";
@@ -1548,11 +1634,11 @@ body {
     ctx.fillText("スターヴァイパー", 68, 86);
     ctx.fillStyle = "#d0d0e8";
     ctx.font = "8px monospace";
-    ctx.fillText("超時空戦闘機でバクト星域を突破せよ", 28, 108);
+    ctx.fillText("カプセルでゲージ点灯 → POWERで装備", 24, 108);
     ctx.fillStyle = (S.frame >> 4) % 2 ? "#fff0c0" : "#a08040";
     ctx.fillText("CLICK / TAP  TO  START", 52, 132);
     ctx.fillStyle = "#8080a0";
-    ctx.fillText("X:POWER  Z:SHOT  ARROWS:MOVE", 28, 150);
+    ctx.fillText("ミサイルはPOWERで装備される", 36, 150);
     ctx.fillText("HI " + String(highScore).padStart(7, "0"), 88, 164);
   }
 
@@ -1610,6 +1696,10 @@ body {
       cursor: S.meter.cursor,
       mode: S.mode,
       enemies: S.enemies.length,
+      missile: S.meter.missile,
+      laser: S.meter.laser,
+      options: S.meter.options,
+      missiles: S.missiles.length,
     };
     draw();
     requestAnimationFrame(loop);
@@ -1647,6 +1737,10 @@ body {
     unlockAudio();
     const p = canvasPoint(ev);
     if (!p) return;
+    if (S.mode === "play" && L.hitPowerBar(p.x, p.y)) {
+      activate();
+      return;
+    }
     pointer.down = true;
     pointer.x = p.x;
     pointer.y = p.y;

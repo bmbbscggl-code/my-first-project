@@ -146,6 +146,20 @@ test("カプセルは赤1機か全滅ボーナスだけ", () => {
   assert.equal(L.shouldDropCapsule(Object.assign({}, wipe, { enemyType: "ducker" })), false);
 });
 
+test("装備メッセージと所有スロット", () => {
+  assert.equal(L.collectMessage(1), "MISSILE点灯! POWERで装備");
+  assert.equal(L.activationMessage("MISSILE", false), "ミサイル装備");
+  assert.equal(L.activationMessage("SPEED", true), "これ以上つけられない");
+  const bare = L.createMeter();
+  assert.equal(L.isSlotOwned(bare, 1), false);
+  const armed = L.applyKonami(bare);
+  assert.equal(L.isSlotOwned(armed, 1), true);
+  assert.equal(L.isSlotOwned(armed, 3), true);
+  assert.equal(L.isSlotOwned(armed, 4), true);
+  assert.equal(L.hitPowerBar(20, 190), true);
+  assert.equal(L.hitPowerBar(20, 80), false);
+});
+
 test("コナミコマンドと移動速度", () => {
   const code = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "KeyB", "KeyA"];
   assert.equal(L.matchesKonami(code), true);
