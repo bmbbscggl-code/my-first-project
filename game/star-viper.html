@@ -921,7 +921,13 @@ body {
     S.continues = continues;
     S.player.inv = 80;
     clock = L.resetSimulationClock(performance.now());
-    say("STAGE " + (S.stage + 1) + "  START", 100);
+    if (/(?:^|[?&])max=1(?:&|$)/.test(location.search)) {
+      S.meter = L.applyKonami(S.meter);
+      S.player.inv = 180;
+      say("ミサイル装備", 90);
+    } else {
+      say("STAGE " + (S.stage + 1) + "  START", 100);
+    }
     refreshPowerBtn();
   }
 
