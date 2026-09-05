@@ -12,6 +12,14 @@
   "use strict";
 
   var POWER_NAMES = ["SPEED", "MISSILE", "DOUBLE", "LASER", "OPTION", "?"];
+  var POWER_JA = {
+    SPEED: "スピードアップ",
+    MISSILE: "ミサイル装備",
+    DOUBLE: "ダブルショット",
+    LASER: "レーザー装備",
+    OPTION: "オプション",
+    "?": "シールド展開",
+  };
   var EXTRA_LIFE_AT = [20000, 50000, 100000, 200000];
   var MAX_SPEED = 5;
   var MAX_OPTIONS = 2;
@@ -35,6 +43,32 @@
       options: 0,
       shield: 0,
     };
+  }
+
+  function collectMessage(cursor) {
+    var name = POWER_NAMES[cursor];
+    if (!name) return "POWERで装備";
+    return name + "点灯! POWERで装備";
+  }
+
+  function activationMessage(name, wasted) {
+    if (wasted) return "これ以上つけられない";
+    return POWER_JA[name] || name || "";
+  }
+
+  function isSlotOwned(meter, slot) {
+    if (!meter) return false;
+    if (slot === 0) return meter.speed > 1;
+    if (slot === 1) return !!meter.missile;
+    if (slot === 2) return !!meter.double;
+    if (slot === 3) return !!meter.laser;
+    if (slot === 4) return meter.options > 0;
+    if (slot === 5) return meter.shield > 0;
+    return false;
+  }
+
+  function hitPowerBar(px, py) {
+    return py >= 186 && py <= 223 && px >= 0 && px <= 256;
   }
 
   function collectCapsule(meter) {
@@ -118,7 +152,7 @@
 
   function playerSpeed(speedLevel) {
     var level = Math.max(1, Math.min(MAX_SPEED, speedLevel || 1));
-    return 1.05 + (level - 1) * 0.42;
+    return 1.15 + (level - 1) * 0.65;
   }
 
   function optionTrailIndex(optionSlot, trailLength) {
@@ -231,6 +265,7 @@
 
   return {
     POWER_NAMES: POWER_NAMES,
+    POWER_JA: POWER_JA,
     EXTRA_LIFE_AT: EXTRA_LIFE_AT,
     MAX_SPEED: MAX_SPEED,
     MAX_OPTIONS: MAX_OPTIONS,
@@ -266,5 +301,9 @@
     resetSimulationClock: resetSimulationClock,
     stepSimulationClock: stepSimulationClock,
     shouldDropCapsule: shouldDropCapsule,
+    collectMessage: collectMessage,
+    activationMessage: activationMessage,
+    isSlotOwned: isSlotOwned,
+    hitPowerBar: hitPowerBar,
   };
 });
