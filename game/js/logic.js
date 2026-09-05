@@ -264,11 +264,11 @@
 
   function shouldDropCapsule(event) {
     if (!event || event.kind !== "kill") return false;
+    if (!isFanType(event.enemyType)) return false;
+    if (event.red) return true;
     if ((event.onScreenCapsules || 0) >= MAX_ONSCREEN_CAPSULES) return false;
     if (event.waveDropped) return false;
     if (!(event.waveIndex >= 1)) return false;
-    if (!isFanType(event.enemyType)) return false;
-    if (event.red && event.waveHasRed) return true;
     if (event.waveHasRed) return false;
     if (!isWipeBonusWave(event.waveIndex)) return false;
     if ((event.fansEscaped || 0) > 0) return false;
