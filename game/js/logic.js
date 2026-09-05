@@ -32,6 +32,7 @@
   var WIPE_PHASE = 6;
   var FAN_COUNT = 5;
   var RED_SLOT = 2;
+  var TOUCH_LIFT_Y = 52;
 
   function createMeter() {
     return {
@@ -165,6 +166,19 @@
     return Math.max(min, Math.min(max, v));
   }
 
+  function beginTouchSteer(pointerX, pointerY, playerX, playerY, liftY) {
+    var lift = liftY == null ? TOUCH_LIFT_Y : liftY;
+    var dx = playerX - pointerX;
+    var dy = playerY - pointerY;
+    if (dy > -lift) dy = -lift;
+    return { dx: dx, dy: dy };
+  }
+
+  function aimFromTouch(pointerX, pointerY, grab) {
+    var g = grab || { dx: 0, dy: -TOUCH_LIFT_Y };
+    return { x: pointerX + g.dx, y: pointerY + g.dy };
+  }
+
   function wrapKonami(buffer, max) {
     var next = buffer.slice();
     if (next.length > max) next = next.slice(next.length - max);
@@ -278,6 +292,7 @@
     WIPE_PHASE: WIPE_PHASE,
     FAN_COUNT: FAN_COUNT,
     RED_SLOT: RED_SLOT,
+    TOUCH_LIFT_Y: TOUCH_LIFT_Y,
     createMeter: createMeter,
     collectCapsule: collectCapsule,
     canActivate: canActivate,
@@ -305,5 +320,7 @@
     activationMessage: activationMessage,
     isSlotOwned: isSlotOwned,
     hitPowerBar: hitPowerBar,
+    beginTouchSteer: beginTouchSteer,
+    aimFromTouch: aimFromTouch,
   };
 });
