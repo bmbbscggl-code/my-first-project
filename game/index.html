@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#050510" />
+    <title>スターヴァイパー — ファミコン風シューティング</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="wrap">
+      <div id="stage-frame">
+        <canvas id="game" width="256" height="224" aria-label="スターヴァイパー"></canvas>
+      </div>
+      <div id="controls">
+        <p class="hint">
+          ドラッグで移動・自動連射<br />
+          カプセルを貯めて POWER
+        </p>
+        <button id="pause-btn" type="button">PAUSE</button>
+        <button id="power-btn" type="button">POWER</button>
+      </div>
+    </div>
+    <p id="rotate-hint">横向きのほうが遊びやすいよ（縦でもOK）</p>
+    <script src="js/logic.js"></script>
+    <script src="js/game.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "star-viper",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Famicom-style horizontal shooter homage",
+  "scripts": {
+    "test": "node --test logic.test.cjs"
+  }
+}
