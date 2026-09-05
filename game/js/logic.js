@@ -16,6 +16,14 @@
   var MAX_SPEED = 5;
   var MAX_OPTIONS = 2;
   var MAX_SHIELD = 3;
+  var FRAME_MS = 1000 / 60;
+  var MAX_STEPS = 5;
+  var MAX_ONSCREEN_CAPSULES = 1;
+  var WAVE_PERIOD = 8;
+  var RED_PHASE = 3;
+  var WIPE_PHASE = 6;
+  var FAN_COUNT = 5;
+  var RED_SLOT = 2;
 
   function createMeter() {
     return {
@@ -162,12 +170,79 @@
     };
   }
 
+  function isFanType(type) {
+    return type === "fan" || type === "fanRed";
+  }
+
+  function isRedWave(waveIndex) {
+    return waveIndex >= 1 && waveIndex % WAVE_PERIOD === RED_PHASE;
+  }
+
+  function isWipeBonusWave(waveIndex) {
+    return waveIndex >= 1 && waveIndex % WAVE_PERIOD === WIPE_PHASE;
+  }
+
+  function planWave(waveIndex) {
+    var red = isRedWave(waveIndex);
+    return {
+      fanCount: FAN_COUNT,
+      isRed: red,
+      redSlot: RED_SLOT,
+      wipeBonus: isWipeBonusWave(waveIndex),
+    };
+  }
+
+  function resetSimulationClock(now) {
+    return { last: now, acc: 0, steps: 0 };
+  }
+
+  function stepSimulationClock(now, last, acc, frameMs, maxSteps, paused) {
+    if (!(frameMs > 0)) return { last: now, acc: 0, steps: 0 };
+    var cap = maxSteps < 1 ? 1 : maxSteps;
+    if (paused) return { last: now, acc: 0, steps: 0 };
+    if (last === null || last === undefined) {
+      return { last: now, acc: 0, steps: 1 };
+    }
+    var dt = now < last ? 0 : now - last;
+    var nextAcc = acc + dt;
+    var steps = 0;
+    while (nextAcc >= frameMs && steps < cap) {
+      nextAcc -= frameMs;
+      steps += 1;
+    }
+    if (steps === cap && nextAcc >= frameMs) nextAcc = 0;
+    return { last: now, acc: nextAcc, steps: steps };
+  }
+
+  function shouldDropCapsule(event) {
+    if (!event || event.kind !== "kill") return false;
+    if ((event.onScreenCapsules || 0) >= MAX_ONSCREEN_CAPSULES) return false;
+    if (event.waveDropped) return false;
+    if (!(event.waveIndex >= 1)) return false;
+    if (!isFanType(event.enemyType)) return false;
+    if (event.red && event.waveHasRed) return true;
+    if (event.waveHasRed) return false;
+    if (!isWipeBonusWave(event.waveIndex)) return false;
+    if ((event.fansEscaped || 0) > 0) return false;
+    if (event.fansAliveAfter !== 0) return false;
+    if (!(event.fansSpawned >= 1)) return false;
+    return true;
+  }
+
   return {
     POWER_NAMES: POWER_NAMES,
     EXTRA_LIFE_AT: EXTRA_LIFE_AT,
     MAX_SPEED: MAX_SPEED,
     MAX_OPTIONS: MAX_OPTIONS,
     MAX_SHIELD: MAX_SHIELD,
+    FRAME_MS: FRAME_MS,
+    MAX_STEPS: MAX_STEPS,
+    MAX_ONSCREEN_CAPSULES: MAX_ONSCREEN_CAPSULES,
+    WAVE_PERIOD: WAVE_PERIOD,
+    RED_PHASE: RED_PHASE,
+    WIPE_PHASE: WIPE_PHASE,
+    FAN_COUNT: FAN_COUNT,
+    RED_SLOT: RED_SLOT,
     createMeter: createMeter,
     collectCapsule: collectCapsule,
     canActivate: canActivate,
@@ -184,5 +259,12 @@
     stageTheme: stageTheme,
     waveInterval: waveInterval,
     cloneMeter: cloneMeter,
+    isFanType: isFanType,
+    isRedWave: isRedWave,
+    isWipeBonusWave: isWipeBonusWave,
+    planWave: planWave,
+    resetSimulationClock: resetSimulationClock,
+    stepSimulationClock: stepSimulationClock,
+    shouldDropCapsule: shouldDropCapsule,
   };
 });

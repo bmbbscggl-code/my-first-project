@@ -62,6 +62,7 @@
       dyingT: 0,
       clearT: 0,
       konamiUsed: false,
+      waveTrack: null,
     };
   }
 
@@ -241,31 +242,18 @@
   }
 
   function spawnWave() {
+    const plan = L.planWave(S.waveIndex);
+    S.waveTrack = {
+      waveIndex: S.waveIndex,
+      hasRed: plan.isRed,
+      dropped: false,
+      spawned: plan.fanCount,
+      alive: plan.fanCount,
+      escaped: 0,
+    };
     const y = 28 + Math.random() * 120;
-    const kind = S.waveIndex % 5;
-    const red = kind === 1 || kind === 4;
-    if (theme() === "moai" && S.scroll > 700 && S.waveIndex % 3 === 0) {
-      spawnMoai(false);
-      if (S.waveIndex % 6 === 0) spawnMoai(true);
-      return;
-    }
-    if (theme() === "fortress" && S.scroll > 700 && S.waveIndex % 4 === 0) {
-      spawnEnemy({
-        type: "turret",
-        x: W + 10,
-        y: PLAY_Y + PLAY_H - terrainHeights(S.scroll + W).bot - 12,
-        w: 12,
-        h: 10,
-        hp: 4,
-        vx: -0.55,
-        vy: 0,
-        t: 0,
-        red: false,
-        score: 300,
-      });
-    }
-    const count = red ? 3 : 5;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < plan.fanCount; i++) {
+      const red = plan.isRed && i === plan.redSlot;
       spawnEnemy({
         type: red ? "fanRed" : "fan",
         x: W + 8 + i * 14,
@@ -280,6 +268,26 @@
         t: i * 6,
         red: red,
         score: red ? 200 : 100,
+        waveIndex: S.waveIndex,
+      });
+    }
+    if (theme() === "moai" && S.scroll > 700 && S.waveIndex % 3 === 0) {
+      spawnMoai(false);
+      if (S.waveIndex % 6 === 0) spawnMoai(true);
+    }
+    if (theme() === "fortress" && S.scroll > 700 && S.waveIndex % 4 === 0) {
+      spawnEnemy({
+        type: "turret",
+        x: W + 10,
+        y: PLAY_Y + PLAY_H - terrainHeights(S.scroll + W).bot - 12,
+        w: 12,
+        h: 10,
+        hp: 4,
+        vx: -0.55,
+        vy: 0,
+        t: 0,
+        red: false,
+        score: 300,
       });
     }
     if (S.scroll > 700 && S.waveIndex % 2 === 0) {
@@ -412,6 +420,7 @@
     S.stage = stage;
     S.continues = continues;
     S.player.inv = 80;
+    clock = L.resetSimulationClock(performance.now());
     say("STAGE " + (S.stage + 1) + "  START", 100);
     refreshPowerBtn();
   }
@@ -481,6 +490,7 @@
         S.enemies = [];
         S.enemyShots = [];
         S.waveIndex = 0;
+        S.waveTrack = null;
         S.mode = "play";
         S.player.inv = 80;
         if (S.stage >= 3) {
@@ -622,12 +632,36 @@
     }
   }
 
+  function noteFanGone(e, kind) {
+    if (!S.waveTrack || e.waveIndex !== S.waveTrack.waveIndex) return;
+    if (!L.isFanType(e.type)) return;
+    if (kind === "escape") S.waveTrack.escaped += 1;
+    S.waveTrack.alive -= 1;
+    if (
+      L.shouldDropCapsule({
+        kind: kind,
+        enemyType: e.type,
+        red: !!e.red,
+        waveIndex: S.waveTrack.waveIndex,
+        waveHasRed: S.waveTrack.hasRed,
+        waveDropped: S.waveTrack.dropped,
+        fansAliveAfter: S.waveTrack.alive,
+        fansEscaped: S.waveTrack.escaped,
+        fansSpawned: S.waveTrack.spawned,
+        onScreenCapsules: S.capsules.length,
+      })
+    ) {
+      dropCapsule(e.x, e.y);
+      S.waveTrack.dropped = true;
+    }
+  }
+
   function killEnemy(j) {
     const e = S.enemies[j];
     addScore(e.score);
     burst(e.x + e.w / 2, e.y + e.h / 2, e.red ? "#ff6040" : "#ffd040", 12);
     beep(320, 0.06, "square", 0.045, 140);
-    if (e.red || (e.type === "fan" && Math.random() < 0.12)) dropCapsule(e.x, e.y);
+    noteFanGone(e, "kill");
     S.enemies.splice(j, 1);
   }
 
@@ -664,6 +698,7 @@
         e.y += e.vy;
       }
       if (e.x < -30) {
+        noteFanGone(e, "escape");
         S.enemies.splice(i, 1);
         continue;
       }
@@ -1086,9 +1121,40 @@
     for (let y = 0; y < H; y += 2) ctx.fillRect(0, y, W, 1);
   }
 
-  function loop() {
-    if (S.mode === "title") updateTitle();
-    else updatePlay();
+  let clock = { last: null, acc: 0 };
+  const dbg = { windowSteps: 0, windowStart: 0, lastHz: 0 };
+
+  function loop(now) {
+    const paused = S.mode === "paused";
+    const stepped = L.stepSimulationClock(
+      now,
+      clock.last,
+      clock.acc,
+      L.FRAME_MS,
+      L.MAX_STEPS,
+      paused
+    );
+    clock.last = stepped.last;
+    clock.acc = stepped.acc;
+    for (let i = 0; i < stepped.steps; i++) {
+      if (S.mode === "title") updateTitle();
+      else updatePlay();
+    }
+    dbg.windowSteps += stepped.steps;
+    if (!dbg.windowStart) dbg.windowStart = now;
+    if (now - dbg.windowStart >= 1000) {
+      dbg.lastHz = dbg.windowSteps / ((now - dbg.windowStart) / 1000);
+      dbg.windowSteps = 0;
+      dbg.windowStart = now;
+    }
+    window.__SV = {
+      simHz: Math.round(dbg.lastHz * 10) / 10,
+      capsules: S.capsules.length,
+      wave: S.waveIndex,
+      cursor: S.meter.cursor,
+      mode: S.mode,
+      enemies: S.enemies.length,
+    };
     draw();
     requestAnimationFrame(loop);
   }
@@ -1111,8 +1177,13 @@
   }
 
   function togglePause() {
-    if (S.mode === "play") S.mode = "paused";
-    else if (S.mode === "paused") S.mode = "play";
+    if (S.mode === "play") {
+      S.mode = "paused";
+      clock = L.resetSimulationClock(performance.now());
+    } else if (S.mode === "paused") {
+      S.mode = "play";
+      clock = L.resetSimulationClock(performance.now());
+    }
   }
 
   canvas.addEventListener("pointerdown", (ev) => {
@@ -1126,11 +1197,12 @@
     if (S.mode !== "play") onStartGesture();
   });
   canvas.addEventListener("pointermove", (ev) => {
+    ev.preventDefault();
     const p = canvasPoint(ev);
     if (!p || !pointer.down) return;
     pointer.x = p.x;
     pointer.y = p.y;
-  });
+  }, { passive: false });
   window.addEventListener("pointerup", () => {
     pointer.down = false;
   });
@@ -1173,7 +1245,10 @@
 
   window.addEventListener("resize", fitCanvas);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && S.mode === "play") S.mode = "paused";
+    if (document.hidden && S.mode === "play") {
+      S.mode = "paused";
+      clock = L.resetSimulationClock(performance.now());
+    }
   });
 
   fitCanvas();
