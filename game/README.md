@@ -4,14 +4,17 @@
 
 ## 遊ぶ
 
-1. このフォルダの `index.html` をブラウザで開く
-2. またはローカルサーバ:
+ブラウザでどれか一つを開いて、画面をタップ／クリックする。
+
+- ワンファイル版: `game/star-viper.html`（このファイルだけ開けば遊べる）
+- 分割版: `game/index.html`
+- オンライン: https://raw.githack.com/bmbbscggl-code/my-first-project/cursor/star-viper-shooter-c818/game/index.html
+
+ローカルサーバ:
 
 ```bash
 python3 -m http.server 8080 --directory game
 ```
-
-開いたら画面をタップ／クリックしてスタート。
 
 ## 操作
 
