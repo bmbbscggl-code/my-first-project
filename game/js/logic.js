@@ -33,6 +33,11 @@
   var FAN_COUNT = 5;
   var RED_SLOT = 2;
   var TOUCH_LIFT_Y = 52;
+  var LASER_BOSS_DAMAGE = 1;
+  var BOSS_BARRIER_COUNT = 4;
+  var BOSS_BARRIER_HP = 20;
+  var BOSS_CORE_BASE = 140;
+  var BOSS_CORE_PER_STAGE = 20;
 
   function createMeter() {
     return {
@@ -262,6 +267,29 @@
     return { last: now, acc: nextAcc, steps: steps };
   }
 
+  function bossCoreHp(stage) {
+    var n = stage || 0;
+    return BOSS_CORE_BASE + n * BOSS_CORE_PER_STAGE;
+  }
+
+  function damageToBoss(shot) {
+    if (!shot) return 1;
+    if (shot.pierce) return LASER_BOSS_DAMAGE;
+    return shot.dmg > 0 ? shot.dmg : 1;
+  }
+
+  function applyBarrierHit(barriers, barrierHp, damage, maxHp) {
+    var hp = barrierHp - damage;
+    var left = barriers;
+    var broke = false;
+    if (hp <= 0) {
+      left = Math.max(0, left - 1);
+      hp = left > 0 ? maxHp : 0;
+      broke = true;
+    }
+    return { barriers: left, barrierHp: hp, layerBroke: broke };
+  }
+
   function shouldDropCapsule(event) {
     if (!event || event.kind !== "kill") return false;
     if (!isFanType(event.enemyType)) return false;
@@ -293,6 +321,11 @@
     FAN_COUNT: FAN_COUNT,
     RED_SLOT: RED_SLOT,
     TOUCH_LIFT_Y: TOUCH_LIFT_Y,
+    LASER_BOSS_DAMAGE: LASER_BOSS_DAMAGE,
+    BOSS_BARRIER_COUNT: BOSS_BARRIER_COUNT,
+    BOSS_BARRIER_HP: BOSS_BARRIER_HP,
+    BOSS_CORE_BASE: BOSS_CORE_BASE,
+    BOSS_CORE_PER_STAGE: BOSS_CORE_PER_STAGE,
     createMeter: createMeter,
     collectCapsule: collectCapsule,
     canActivate: canActivate,
@@ -322,5 +355,8 @@
     hitPowerBar: hitPowerBar,
     beginTouchSteer: beginTouchSteer,
     aimFromTouch: aimFromTouch,
+    bossCoreHp: bossCoreHp,
+    damageToBoss: damageToBoss,
+    applyBarrierHit: applyBarrierHit,
   };
 });

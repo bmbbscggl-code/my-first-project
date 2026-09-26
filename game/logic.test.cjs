@@ -189,3 +189,24 @@ test("コナミコマンドと移動速度", () => {
   assert.equal(L.stageTheme(2), "fortress");
   assert.ok(L.optionTrailIndex(1, 40) < L.optionTrailIndex(0, 40) || L.optionTrailIndex(1, 40) <= 39);
 });
+
+test("ボスに対するレーザーは通常弾より弱く一層では割れない", () => {
+  assert.equal(L.damageToBoss({ pierce: true, dmg: 2 }), 1);
+  assert.equal(L.damageToBoss({ pierce: false, dmg: 1 }), 1);
+  assert.ok(L.bossCoreHp(0) >= 140);
+  assert.equal(L.BOSS_BARRIER_HP, 20);
+  const first = L.applyBarrierHit(4, L.BOSS_BARRIER_HP, L.damageToBoss({ pierce: true, dmg: 2 }), L.BOSS_BARRIER_HP);
+  assert.equal(first.barriers, 4);
+  assert.equal(first.layerBroke, false);
+  let hp = L.BOSS_BARRIER_HP;
+  let layers = 4;
+  let broke = 0;
+  for (let i = 0; i < L.BOSS_BARRIER_HP; i++) {
+    const r = L.applyBarrierHit(layers, hp, 1, L.BOSS_BARRIER_HP);
+    layers = r.barriers;
+    hp = r.barrierHp;
+    if (r.layerBroke) broke += 1;
+  }
+  assert.equal(broke, 1);
+  assert.equal(layers, 3);
+});

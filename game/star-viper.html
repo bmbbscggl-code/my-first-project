@@ -220,6 +220,11 @@ body {
   var FAN_COUNT = 5;
   var RED_SLOT = 2;
   var TOUCH_LIFT_Y = 52;
+  var LASER_BOSS_DAMAGE = 1;
+  var BOSS_BARRIER_COUNT = 4;
+  var BOSS_BARRIER_HP = 20;
+  var BOSS_CORE_BASE = 140;
+  var BOSS_CORE_PER_STAGE = 20;
 
   function createMeter() {
     return {
@@ -449,6 +454,29 @@ body {
     return { last: now, acc: nextAcc, steps: steps };
   }
 
+  function bossCoreHp(stage) {
+    var n = stage || 0;
+    return BOSS_CORE_BASE + n * BOSS_CORE_PER_STAGE;
+  }
+
+  function damageToBoss(shot) {
+    if (!shot) return 1;
+    if (shot.pierce) return LASER_BOSS_DAMAGE;
+    return shot.dmg > 0 ? shot.dmg : 1;
+  }
+
+  function applyBarrierHit(barriers, barrierHp, damage, maxHp) {
+    var hp = barrierHp - damage;
+    var left = barriers;
+    var broke = false;
+    if (hp <= 0) {
+      left = Math.max(0, left - 1);
+      hp = left > 0 ? maxHp : 0;
+      broke = true;
+    }
+    return { barriers: left, barrierHp: hp, layerBroke: broke };
+  }
+
   function shouldDropCapsule(event) {
     if (!event || event.kind !== "kill") return false;
     if (!isFanType(event.enemyType)) return false;
@@ -480,6 +508,11 @@ body {
     FAN_COUNT: FAN_COUNT,
     RED_SLOT: RED_SLOT,
     TOUCH_LIFT_Y: TOUCH_LIFT_Y,
+    LASER_BOSS_DAMAGE: LASER_BOSS_DAMAGE,
+    BOSS_BARRIER_COUNT: BOSS_BARRIER_COUNT,
+    BOSS_BARRIER_HP: BOSS_BARRIER_HP,
+    BOSS_CORE_BASE: BOSS_CORE_BASE,
+    BOSS_CORE_PER_STAGE: BOSS_CORE_PER_STAGE,
     createMeter: createMeter,
     collectCapsule: collectCapsule,
     canActivate: canActivate,
@@ -509,6 +542,9 @@ body {
     hitPowerBar: hitPowerBar,
     beginTouchSteer: beginTouchSteer,
     aimFromTouch: aimFromTouch,
+    bossCoreHp: bossCoreHp,
+    damageToBoss: damageToBoss,
+    applyBarrierHit: applyBarrierHit,
   };
 });
 
@@ -949,6 +985,10 @@ body {
       S.waveIndex = 2;
       S.waveTimer = 1000;
     }
+    if (/(?:^|[?&])boss=1(?:&|$)/.test(location.search)) {
+      S.scroll = STAGE_LEN + 10;
+      startBoss();
+    }
     refreshPowerBtn();
   }
 
@@ -960,8 +1000,9 @@ body {
       h: 48,
       vx: -0.8,
       vy: 0.55,
-      barriers: 4,
-      core: 30 + S.stage * 8,
+      barriers: L.BOSS_BARRIER_COUNT,
+      barrierHp: L.BOSS_BARRIER_HP,
+      core: L.bossCoreHp(S.stage),
       open: false,
       t: 0,
       fire: 0,
@@ -1127,7 +1168,8 @@ body {
         }
       }
       if (S.boss && !S.boss.dead && hitBoss(b)) {
-        hit = true;
+        S.bullets.splice(i, 1);
+        continue;
       }
       if (hit && !b.pierce) S.bullets.splice(i, 1);
     }
@@ -1294,16 +1336,25 @@ body {
     if (boss.barriers > 0) {
       const bar = { x: boss.x + 10, y: boss.y + 16, w: 16, h: 16 };
       if (L.aabb(b, bar)) {
-        boss.barriers -= 1;
-        burst(bar.x, bar.y, "#40e8ff", 8);
-        addScore(500);
-        beep(400, 0.05, "square", 0.05);
+        const hit = L.applyBarrierHit(
+          boss.barriers,
+          boss.barrierHp,
+          L.damageToBoss(b),
+          L.BOSS_BARRIER_HP
+        );
+        boss.barriers = hit.barriers;
+        boss.barrierHp = hit.barrierHp;
+        burst(bar.x, bar.y, "#40e8ff", hit.layerBroke ? 10 : 4);
+        if (hit.layerBroke) {
+          addScore(500);
+          beep(400, 0.05, "square", 0.05);
+        }
         return true;
       }
       return false;
     }
     if (L.aabb(b, core)) {
-      boss.core -= b.dmg;
+      boss.core -= L.damageToBoss(b);
       burst(core.x, core.y, "#ff4060", 6);
       if (boss.core <= 0) defeatBoss();
       return true;
@@ -1739,6 +1790,10 @@ body {
       touchX: Math.round(pointer.x),
       touchY: Math.round(pointer.y),
       aboveFinger: !pointer.down || S.player.y < pointer.y - 20,
+      boss: !!(S.boss && !S.boss.dead),
+      bossCore: S.boss && !S.boss.dead ? S.boss.core : 0,
+      bossBarriers: S.boss && !S.boss.dead ? S.boss.barriers : 0,
+      bossOpen: !!(S.boss && S.boss.open),
     };
     draw();
     requestAnimationFrame(loop);

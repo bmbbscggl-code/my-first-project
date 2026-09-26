@@ -433,6 +433,10 @@
       S.waveIndex = 2;
       S.waveTimer = 1000;
     }
+    if (/(?:^|[?&])boss=1(?:&|$)/.test(location.search)) {
+      S.scroll = STAGE_LEN + 10;
+      startBoss();
+    }
     refreshPowerBtn();
   }
 
@@ -444,8 +448,9 @@
       h: 48,
       vx: -0.8,
       vy: 0.55,
-      barriers: 4,
-      core: 30 + S.stage * 8,
+      barriers: L.BOSS_BARRIER_COUNT,
+      barrierHp: L.BOSS_BARRIER_HP,
+      core: L.bossCoreHp(S.stage),
       open: false,
       t: 0,
       fire: 0,
@@ -611,7 +616,8 @@
         }
       }
       if (S.boss && !S.boss.dead && hitBoss(b)) {
-        hit = true;
+        S.bullets.splice(i, 1);
+        continue;
       }
       if (hit && !b.pierce) S.bullets.splice(i, 1);
     }
@@ -778,16 +784,25 @@
     if (boss.barriers > 0) {
       const bar = { x: boss.x + 10, y: boss.y + 16, w: 16, h: 16 };
       if (L.aabb(b, bar)) {
-        boss.barriers -= 1;
-        burst(bar.x, bar.y, "#40e8ff", 8);
-        addScore(500);
-        beep(400, 0.05, "square", 0.05);
+        const hit = L.applyBarrierHit(
+          boss.barriers,
+          boss.barrierHp,
+          L.damageToBoss(b),
+          L.BOSS_BARRIER_HP
+        );
+        boss.barriers = hit.barriers;
+        boss.barrierHp = hit.barrierHp;
+        burst(bar.x, bar.y, "#40e8ff", hit.layerBroke ? 10 : 4);
+        if (hit.layerBroke) {
+          addScore(500);
+          beep(400, 0.05, "square", 0.05);
+        }
         return true;
       }
       return false;
     }
     if (L.aabb(b, core)) {
-      boss.core -= b.dmg;
+      boss.core -= L.damageToBoss(b);
       burst(core.x, core.y, "#ff4060", 6);
       if (boss.core <= 0) defeatBoss();
       return true;
@@ -1223,6 +1238,10 @@
       touchX: Math.round(pointer.x),
       touchY: Math.round(pointer.y),
       aboveFinger: !pointer.down || S.player.y < pointer.y - 20,
+      boss: !!(S.boss && !S.boss.dead),
+      bossCore: S.boss && !S.boss.dead ? S.boss.core : 0,
+      bossBarriers: S.boss && !S.boss.dead ? S.boss.barriers : 0,
+      bossOpen: !!(S.boss && S.boss.open),
     };
     draw();
     requestAnimationFrame(loop);
